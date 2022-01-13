@@ -5,7 +5,8 @@ import tensorflow as tf
 def padding1D(x, in_channels, kernel_size, dilation=1):
     pad = ((kernel_size-1)*(2**(dilation+1)),0)
     out = torch.nn.functional.pad(x,pad)
-    out = torch.reshape(out, [1,in_channels,-1])
+    if in_channels == 1:
+        out = torch.reshape(out, [1,in_channels,-1])
     return out
 
 class CausalBlock(nn.Module):
@@ -45,7 +46,8 @@ class CausalBlock(nn.Module):
         pad_x = padding1D(x, in_channels=self.in_channels, kernel_size=self.kernel_size, dilation=self.dilation)
         if self.skip:
             out = self.layer(pad_x)
-            x = torch.reshape(x, [1,self.in_channels,-1])
+            if self.in_channels == 1:
+                x = torch.reshape(x, [1,self.in_channels,-1])
             x = self.skip_layer(x)
             return out + x
         else:
@@ -56,11 +58,14 @@ class CausalBlock(nn.Module):
 class Encoder(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(Encoder, self).__init__()
-        self.causalblock1 = CausalBlock(in_channels, 10, 10, skip=True, kernel_size=3, dilation=0)
-        self.causalblock2 = CausalBlock(10, 10, 10, skip=True, kernel_size=3, dilation=1)
-        self.causalblock3 = CausalBlock(10, 10, out_channels, skip=True, kernel_size=3, dilation=2)
+        #self.causalblock1 = CausalBlock(in_channels, 10, 10, skip=True, kernel_size=3, dilation=0)
+        #self.causalblock2 = CausalBlock(10, 10, 10, skip=True, kernel_size=3, dilation=1)
+        #self.causalblock3 = CausalBlock(10, 10, out_channels, skip=True, kernel_size=3, dilation=2)
+        #self.maxpool = nn.AdaptiveMaxPool1d(1)
+        self.causalblock1 = CausalBlock(in_channels, 128, 256, skip=True, kernel_size=3, dilation=0)
+        self.causalblock2 = CausalBlock(256, 128, 256, skip=True, kernel_size=3, dilation=1)
+        self.causalblock3 = CausalBlock(256, 128, out_channels, skip=True, kernel_size=3, dilation=2)
         self.maxpool = nn.AdaptiveMaxPool1d(1)
-
         self.out_channels = out_channels
 
     def forward(self, x):

@@ -21,14 +21,14 @@ class TripletSigmoidLoss(torch.nn.modules.loss._Loss):
         samples = torch.LongTensor(samples)
 
         lengths_batch = max_length - torch.sum(
-                        torch.isnan(batch[:]), 1
+                        torch.isnan(batch[:,0]), 1
                     ).data.cpu().numpy()
         lengths_samples = np.empty(
                         (self.Kcount, batch_size), dtype=int
                     )
         for i in range(self.Kcount):
             lengths_samples[i] = max_length - torch.sum(
-                torch.isnan(train[samples[i]]), 1
+                torch.isnan(train[samples[i],0]), 1
             ).data.cpu().numpy()
 
         '''print("lengths_samples :\n", lengths_samples)
@@ -80,15 +80,15 @@ class TripletSigmoidLoss(torch.nn.modules.loss._Loss):
 
         ref = []
         for j in range(batch_size):
-            ref.append(encoder.forward(batch[j, beginning_ref[j]:beginning_ref[j]+lengths_ref[j]]))
+            ref.append(encoder.forward(batch[j,:,beginning_ref[j]:beginning_ref[j]+lengths_ref[j]]))
         ref = torch.stack(ref)
         pos = []
         for j in range(batch_size):
-            pos.append(encoder.forward(batch[j, beginning_pos[j]:beginning_pos[j]+lengths_pos[j]]))
+            pos.append(encoder.forward(batch[j,:,beginning_pos[j]:beginning_pos[j]+lengths_pos[j]]))
         pos = torch.stack(pos)
         neg = []
         for j in range(batch_size):
-            neg_tensor = [encoder.forward(train[samples[i,j], beginning_neg[i,j]:beginning_neg[i,j]+lengths_neg[i,j]]) for i in range(self.Kcount)]
+            neg_tensor = [encoder.forward(train[samples[i,j],:,beginning_neg[i,j]:beginning_neg[i,j]+lengths_neg[i,j]]) for i in range(self.Kcount)]
             neg.append(torch.stack(neg_tensor))
         neg = torch.stack(neg)
 
@@ -117,6 +117,75 @@ class TripletSigmoidLoss(torch.nn.modules.loss._Loss):
         torch.cuda.empty_cache()
 
         return loss_tr
+
+    def get_valloss(self,  encoder, val, **kwargs):
+        train_size = val.size(0)
+        max_length = val.size(1)
+
+        samples = np.random.choice(
+                    train_size, size=(self.Kcount+1),replace=False
+                )
+        samples = torch.LongTensor(samples)
+
+        lengths_samples = np.empty(
+                        (self.Kcount+1), dtype=int
+                    )
+        for i in range(self.Kcount+1):
+            lengths_samples[i] = max_length - torch.sum(
+                torch.isnan(val[samples[i],0]), 0
+            ).data.cpu().numpy()
+
+        lengths_pos = np.random.randint(
+                self.margin, lengths_samples[0] + 1
+            )
+        lengths_neg = np.empty(
+            (self.Kcount), dtype=int
+        )
+        for j in range(self.Kcount):
+            lengths_neg[j] = np.random.randint(
+                self.margin, lengths_samples[j+1] + 1
+            )
+
+        beginning_pos = np.random.randint(
+                0, lengths_samples[0] - lengths_pos + 1
+            )
+        beginning_neg = np.empty(
+            (self.Kcount), dtype=int
+        )
+        for j in range(self.Kcount):
+            beginning_neg[j] = np.random.randint(
+                0, lengths_samples[j+1] - lengths_neg[j] + 1
+            )
+
+        lengths_ref = np.random.randint(
+                self.margin, lengths_pos + 1
+            )
+        beginning_ref = np.random.randint(
+                beginning_pos, lengths_pos - lengths_ref + beginning_pos + 1
+            )
+
+        ref = encoder.forward(val[samples[0],:, beginning_ref:beginning_ref+lengths_ref])
+        pos = encoder.forward(val[samples[0],:, beginning_pos:beginning_pos+lengths_pos])
+        neg = []
+        for j in range(self.Kcount):
+            neg_tensor = encoder.forward(val[samples[j+1],:, beginning_neg[j]:beginning_neg[j]+lengths_neg[j]])
+            neg.append(neg_tensor)
+        neg = torch.stack(neg)
+
+        loss = 0
+
+        loss += -torch.nn.functional.logsigmoid(torch.matmul(ref,pos.view(-1,1)))
+
+        for i in range(self.Kcount):
+            neg_tensor = neg[i,:,:]
+            loss += -torch.mean(torch.nn.functional.logsigmoid(
+            -torch.matmul(ref,neg_tensor.view(-1,1))))
+         
+        del pos, neg, ref
+        torch.cuda.empty_cache()
+
+        return loss
+
     
     '''
     def gettripletsigLoss(input, batch, Kcount, device):
