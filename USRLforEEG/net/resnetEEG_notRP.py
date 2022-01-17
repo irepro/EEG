@@ -62,45 +62,49 @@ def conv(in_channels, out_channels):
         nn.ReLU(inplace=True)
     )
 
-class Resnet50Encoder(nn.Module):
+class ResnetEncoder_NotRP(nn.Module):
     def __init__(self, inchannels = 12, n_classes=22):
         super().__init__()
         self.n_classes = n_classes
         self.layer1 = nn.Sequential(
-            nn.Conv1d(inchannels, 16, kernel_size = 5, stride = 2, padding = 3 ), # Code overlaps with previous assignments
-            nn.BatchNorm1d(16),
+            nn.Conv1d(inchannels, 128, kernel_size = 7, stride = 2, padding = 3 ), # Code overlaps with previous assignments
+            nn.BatchNorm1d(128),
             nn.ReLU(inplace=True)
         )
         self.pool = nn.MaxPool1d(3, 2, 1, return_indices=True)
 
         self.layer2 = nn.Sequential(
-            ResidualBlock(16, 8, 16),
-            ResidualBlock(16, 8, 16),
-            ResidualBlock(16, 8, 16, downsample=True) # Code overlaps with previous assignments
+            ResidualBlock(128, 64, 256),
+            ResidualBlock(256, 64, 256),
+            ResidualBlock(256, 64, 256, downsample=True) # Code overlaps with previous assignments
         )
         self.layer3 = nn.Sequential(
-            ResidualBlock(16, 8, 16),
-            ResidualBlock(16, 8, 16),
-            ResidualBlock(16, 8, 16),
-            ResidualBlock(16, 8, 32, downsample=True) # Code overlaps with previous assignments
+            ResidualBlock(256, 128, 512),
+            ResidualBlock(512, 128, 512),
+            ResidualBlock(512, 128, 512),
+            ResidualBlock(512, 128, 512, downsample=False) # Code overlaps with previous assignments
         )
-        self.bridge = conv(16, 16)
-        self.fullconnect = nn.Linear(144,1)
+        self.bridge = conv(512, 512)
+        self.fullconnect1 = nn.Linear(19456,1024)
+        self.fullconnect2 = nn.Linear(1024,1024)
+        self.fullconnect3 = nn.Linear(1024,1)
     ###########################################################################
     # Question 2 : Implement the forward function of Resnet_encoder_UNet.
     # Understand ResNet, UNet architecture and fill in the blanks below.
     def forward(self, x): #256
         batch_size = x.shape[0]
         feature_size = x.shape[1]
-        x = x.reshape([batch_size,1,feature_size])
+        x = x.reshape([batch_size,feature_size,-1])
 
         out1 = self.layer1(x)
         out1, indices = self.pool(out1)
         out2 = self.layer2(out1)
-        #out3 = self.layer3(out2)
-        x = self.bridge(out2) # bridge
+        out3 = self.layer3(out2)
+        x = self.bridge(out3) # bridge
         x = torch.flatten(x,1)
-        x = self.fullconnect(x)
+        x = self.fullconnect1(x)
+        x = self.fullconnect2(x)
+        x = self.fullconnect3(x)
         x = torch.sigmoid(x)
         return x
 

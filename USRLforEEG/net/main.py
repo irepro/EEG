@@ -25,7 +25,7 @@ print("valLoader")
 validLoader = DataLoader(testEEG, batch_size = batch_size, shuffle=True)
 
 in_channels = 62
-out_channels = 64
+out_channels = 32
 
 model = Encoder(in_channels, out_channels)
 criterion = TripletSigmoidLoss()
