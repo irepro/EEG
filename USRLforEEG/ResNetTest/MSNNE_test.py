@@ -6,14 +6,10 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import numpy as np
 import torch
 from net import EEGLoader
-from model import UnsupervisedEncoder, resnetEEG, resnetEEGnoConnect, simpleClass
+from model import rptsMSNN, resnetEEGnoConnect, simpleClass
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 import tensorflow as tf
-
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
-
 
 def accuracy_check(label, pred):
     prediction = np.around(pred)
@@ -22,9 +18,9 @@ def accuracy_check(label, pred):
     accuracy = np.sum(compare.tolist()) / len(compare.tolist())
     return accuracy
 
-batch_size = 4
-learning_rate = 0.0000000001
-epochs = 10
+batch_size = 8
+learning_rate = 0.0001
+epochs = 20
 
 data_dir = "../USRLFOREEG/data"
 
@@ -46,20 +42,20 @@ electrode = 62
 
 #represent_encoder = UnsupervisedEncoder.Encoder(electrode, in_channels, out_channels)
 
-name = "02091202ch72loss1"
-PATH = "../USRLFOREEG/save_model/"+name+".pth"
+
+PATH = "../USRLFOREEG/save_model/01241601ch32loss2.pth"
 represent_encoder = torch.load(PATH, map_location=torch.device('cpu'))
 #represent_encoder.load_state_dict(checkpoint)
 
-resnetClasification = resnetEEGnoConnect.Resnet50Encoder(62,2)
+resnetClasification = rptsMSNN.Resnet50Encoder(62,2)
 #resnetClasification = simpleClass.Net()
 
 max_norm = 5
 #BCEloss = torch.nn.BCELoss()
 CrossEL=torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(resnetClasification.parameters(), lr=learning_rate, momentum=0.9)
-#optimizer = torch.optim.Adam(resnetClasification.parameters(), lr=learning_rate)
-scheduler = StepLR(optimizer, step_size=5, gamma=0.1)
+#optimizer = torch.optim.SGD(resnetClasification.parameters(), lr=learning_rate, momentum=0.9)
+optimizer = torch.optim.Adam(resnetClasification.parameters(), lr=learning_rate)
+scheduler = StepLR(optimizer, step_size=10, gamma=0.1)
 
 total_loss = []
 for epoch in range(epochs):
@@ -89,7 +85,7 @@ for epoch in range(epochs):
         torch.cuda.empty_cache()
     
     total_loss.append(epoch_loss)
-    scheduler.step()
+    #scheduler.step()
 
     print("epoch", epoch + 1, "train loss : ", epoch_loss)
 
@@ -108,16 +104,14 @@ task_pred = resnetClasification.forward(rpt_batch)
 
 pred = np.argmax(task_pred.detach().numpy(), axis=1)
 epoch_acc = accuracy_check(labels, pred)
-print(pred)
-print(labels)
 
 print("val acc : ", epoch_acc)
+
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 
 label=[0, 1] # 라벨 설정
 plot = confusion_matrix(labels, pred)
 print(plot)
-score = str(f1_score(labels, pred))
-print("f1 acc : ", score)
-
-savepath = "../USRLFOREEG/save_res/"+ "ch" + name[2:12] + "f1"+score[2:4] + "acc" + str(epoch_acc[2:]) + ".pth"
-torch.save(resnetClasification, savepath)
+print("f1 acc : ", f1_score(labels, pred))

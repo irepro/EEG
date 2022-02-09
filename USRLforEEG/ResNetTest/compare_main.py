@@ -5,7 +5,8 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 import numpy as np
 import torch
-from net import EEGLoader, resnetEEG_notRP
+from net import EEGLoader
+from model import resnetEEG_notRP
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 
@@ -18,14 +19,14 @@ def accuracy_check(label, pred):
 
 batch_size = 16
 learning_rate = 0.01
-epochs = 50
+epochs = 30
 
 data_dir = "../USRLFOREEG/data"
 
-trainEEG = EEGLoader.EEGLoader(data_dir + "/train/TIME_Sess01_sub01_train.npy", one_channel = False, supervised = True, bpf = True)
-trlblEEG = trainEEG.setLabel(data_dir + "/train/TIME_Sess01_sub01_trlbl.npy")
+trainEEG = EEGLoader.EEGLoader(data_dir + "/train/TIME_Sess01_sub01_train.npy", num_channel = 62, supervised = True, bpf = True)
+trlblEEG = trainEEG.setLabel(data_dir + "/train/TIME_Sess01_sub01_trlbl.npy",one_dim=False)
 
-testEEG = EEGLoader.EEGLoader(data_dir + "/test/TIME_Sess01_sub01_test.npy", one_channel = False, supervised = True, bpf = True)
+testEEG = EEGLoader.EEGLoader(data_dir + "/test/TIME_Sess01_sub01_test.npy", num_channel = 62, supervised = True, bpf = True)
 tslblEEG = testEEG.setLabel(data_dir + "/test/TIME_Sess01_sub01_tslbl.npy")
 
 print("tainLoader")
@@ -36,7 +37,7 @@ validLoader = DataLoader(testEEG, batch_size = batch_size, shuffle=True)
 resnetClasification = resnetEEG_notRP.ResnetEncoder_NotRP(62,2)
 BCEloss = torch.nn.BCELoss()
 optimizer = torch.optim.SGD(resnetClasification.parameters(), lr=learning_rate)
-scheduler = StepLR(optimizer, step_size=4, gamma=0.1)
+scheduler = StepLR(optimizer, step_size=7, gamma=0.1)
 
 total_acc = []
 total_loss = []
@@ -62,5 +63,13 @@ for epoch in range(epochs):
     total_loss.append(epoch_loss)
     scheduler.step()
 
-    print("epoch", epoch + 1, "train loss : ", epoch_loss, "train acc : ", epoch_acc/batch_size)
+    print("epoch", epoch + 1, "train loss : ", epoch_loss, "train acc : ", epoch_acc)
 
+inputs, labels = testEEG.getallitem()
+outputs = resnetClasification.forward(inputs)
+outputs = outputs.squeeze()
+
+pred = np.argmax(outputs.detach().numpy(), axis=1)
+epoch_acc = accuracy_check(labels, pred)
+
+print("val acc : ", epoch_acc)

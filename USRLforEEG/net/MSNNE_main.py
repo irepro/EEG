@@ -6,14 +6,14 @@ import numpy as np
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
-from model import UnsupervisedEncoder, UnsupervisedEncoder_batch, MSNNEncoder
+from model import MSNNEncoder
 from EEGLoader import *
-from loss import TripletSigmoidLoss
+from loss import TripletSigmoidLoss_MSNNE
 
 # batch size
-batch_size = 16
+batch_size = 8
 learning_rate = 0.00000001
-epochs = 10
+epochs = 20
 
 # dataset path
 data_dir = "../USRLFOREEG/data"
@@ -33,21 +33,21 @@ validLoader = DataLoader(testEEG, batch_size = batch_size, shuffle=True)
 #if in_channels == 1: use one channel, in_channels == 62 : use 62 channel
 in_channels = 1
 #out_channels means the number of features of representation vector 
-out_channels = 72
+out_channels = 32
 electrode = 62
 
-model = UnsupervisedEncoder_batch.Encoder(electrode, in_channels, out_channels)
-#model = MSNNEncoder.Encoder(electrode, in_channels, out_channels)
+#model = UnsupervisedEncoder_batch.Encoder(electrode, in_channels, out_channels)
+model = MSNNEncoder.Encoder(electrode, in_channels, out_channels)
 '''PATH = "../USRLFOREEG/save_model/01191501ch128loss3.pth"
 checkpoint = torch.load(PATH)
 model.load_state_dict(checkpoint)'''
 #Custom Tripletloss
 
-criterion = TripletSigmoidLoss.TripletSigmoidLoss(Kcount=4, electrode = 62, scale_int=0.2, sample_margin = 200) 
+criterion = TripletSigmoidLoss_MSNNE.TripletSigmoidLoss(Kcount=5, electrode = 62, scale_int=0.2) 
 
 #use SGD optimizer
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
-scheduler = StepLR(optimizer, step_size=6, gamma=0.5)
+scheduler = StepLR(optimizer, step_size=5, gamma=0.1)
 
 # save epoch loss
 loss_tr = []
@@ -62,7 +62,7 @@ for epoch in range(epochs):
     loss_v = criterion.get_valloss(model, testEEG.getallitem())
     loss_tr.append(loss_ep.item()/1000)
     loss_val.append(loss_v.item())
-    #scheduler.step()
+    scheduler.step()
     print("epoch : ",epoch, "   train loss : ",loss_ep.item(),"    val loss : ", loss_v.item())
 
 import os
