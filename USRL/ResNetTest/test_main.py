@@ -6,10 +6,15 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import numpy as np
 import torch
 from net import EEGLoader
-from model import rptsMSNN, resnetEEGnoConnect, simpleClass
+from model import USRL
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 import tensorflow as tf
+
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
+
 
 def accuracy_check(label, pred):
     prediction = np.around(pred)
@@ -18,9 +23,9 @@ def accuracy_check(label, pred):
     accuracy = np.sum(compare.tolist()) / len(compare.tolist())
     return accuracy
 
-batch_size = 8
-learning_rate = 0.001
-epochs = 30
+batch_size = 4
+learning_rate = 0.0001
+epochs = 40
 
 data_dir = "../USRLFOREEG/data"
 
@@ -35,48 +40,33 @@ trainLoader = DataLoader(trainEEG, batch_size = batch_size, shuffle=True)
 print("valLoader")
 validLoader = DataLoader(testEEG, batch_size = batch_size, shuffle=True)
 
-in_channels = 1
-#out_channels means the number of features of representation vector 
-out_channels = 96
-electrode = 62
-
 #represent_encoder = UnsupervisedEncoder.Encoder(electrode, in_channels, out_channels)
 
-
-PATH = "../USRLFOREEG/save_model/02100902ch32loss5.pth"
-represent_encoder = torch.load(PATH, map_location=torch.device('cpu'))
-#represent_encoder.load_state_dict(checkpoint)
-
-resnetClasification = rptsMSNN.Resnet50Encoder(62,2)
-#resnetClasification = simpleClass.Net()
+name = "151902c512l12elecT"
+PATH = "../USRL/save_model/"+name+".pth"
+model = torch.load(PATH, map_location=torch.device('cpu'))
+model.set_Unsupervised(False)
 
 max_norm = 5
 #BCEloss = torch.nn.BCELoss()
 CrossEL=torch.nn.CrossEntropyLoss()
-#optimizer = torch.optim.SGD(resnetClasification.parameters(), lr=learning_rate, momentum=0.9)
-optimizer = torch.optim.Adam(resnetClasification.parameters(), lr=learning_rate)
-scheduler = StepLR(optimizer, step_size=8, gamma=0.1)
+#optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+scheduler = StepLR(optimizer, step_size=10, gamma=0.1)
 
 total_loss = []
 for epoch in range(epochs):
 
     epoch_loss = 0
     for batch, (inputs, labels) in enumerate(trainLoader):
-        #mini_size = inputs.size(0)
-        rpt_batch = represent_encoder.forward(inputs)
-        #rpt_batch = []
-        #for i in range(mini_size):
-        #    input = inputs[i,:,:]
-        #    rpt_batch.append(represent_encoder.forward(input)
-        #rpt_batch = torch.stack(rpt_batch)
         optimizer.zero_grad()
 
-        outputs = resnetClasification.forward(rpt_batch)
+        outputs = model.forward(inputs)
         outputs = outputs.squeeze()
         loss = CrossEL(outputs, labels)
 
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(resnetClasification.parameters(), max_norm)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
         optimizer.step()
 
         epoch_loss += loss.clone().item()
@@ -85,33 +75,31 @@ for epoch in range(epochs):
         torch.cuda.empty_cache()
     
     total_loss.append(epoch_loss)
-    #scheduler.step()
+    scheduler.step()
 
     print("epoch", epoch + 1, "train loss : ", epoch_loss)
 
 inputs, labels = testEEG.getallitem()
 labels = np.argmax(labels, axis=1)
 
-rpt_batch = represent_encoder.forward(inputs)
-#test_size = inputs.size(0)
-#rpt_batch = []
-#for i in range(test_size):
-#    input = inputs[i,:,:]
-# #   rpt_batch.append(represent_encoder.forward(input))
-#rpt_batch = torch.stack(rpt_batch)
-
-task_pred = resnetClasification.forward(rpt_batch)
-
-pred = np.argmax(task_pred.detach().numpy(), axis=1)
+outputs = model.forward(inputs)
+pred = np.argmax(outputs.detach().numpy(), axis=1)
 epoch_acc = accuracy_check(labels, pred)
+print(pred)
+print(labels)
 
 print("val acc : ", epoch_acc)
-
-from sklearn.metrics import confusion_matrix
-import matplotlib.pyplot as plt
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 
 label=[0, 1] # 라벨 설정
 plot = confusion_matrix(labels, pred)
 print(plot)
-print("f1 acc : ", f1_score(labels, pred))
+score = str(f1_score(labels, pred))
+print("f1 acc : ", score)
+
+plt.title('Loss history')
+plt.xlabel('epoch')
+plt.ylabel('loss')
+plt.show()
+
+savepath = "../USRLFOREEG/save_res/"+ "ch" + name[2:12] + "f1"+score[2:4] + "acc" + str(epoch_acc[2:]) + ".pth"
+torch.save(model, savepath)

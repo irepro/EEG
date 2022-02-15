@@ -33,7 +33,7 @@ electrode = 62
 
 represent_encoder = UnsupervisedEncoder.Encoder(electrode, in_channels, out_channels)'''
 
-PATH = "../USRLFOREEG/save_model/02051302ch72loss2.pth"
+PATH = "../USRLFOREEG/save_model/02141602ch512loss9.pth"
 represent_encoder = torch.load(PATH, map_location=torch.device('cpu'))
 
 

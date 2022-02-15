@@ -5,11 +5,10 @@ import torch.nn as nn
 import tensorflow as tf
 
 class TripletSigmoidLoss(torch.nn.modules.loss._Loss):
-    def __init__(self, Kcount = 5, sample_margin =10, electrode = 62, scale_int = 0.2):
+    def __init__(self, Kcount = 5, sample_margin =10, scale_int = 0.2):
         super().__init__()
         self.Kcount = Kcount # number of negative sample 
         self.margin = sample_margin # min of signal length
-        self.electrode = electrode
         self.scale_int = scale_int
 
     def forward(self, batch, encoder, train, **kwargs):
@@ -104,19 +103,16 @@ class TripletSigmoidLoss(torch.nn.modules.loss._Loss):
                 neg_tensor = [encoder.forward(torch.unsqueeze(input,0))]
                 neg.append(torch.stack(neg_tensor))
         neg = torch.stack(neg)
-        neg = neg.reshape([batch_size,self.Kcount,self.electrode, -1])
+        neg = neg.reshape([batch_size,self.Kcount, -1])
 
         batch_size = batch.size(0)
         
         loss, loss_tr = 0, 0
         
         # loss between pos and ref
-        for i in range(self.electrode):
-            ref_tensor = ref[:,i,:]
-            pos_tensor = pos[:,i,:]
-            loss += -torch.mean(torch.nn.functional.logsigmoid(torch.bmm(
-                ref_tensor.view(batch_size, 1, -1),pos_tensor.view(batch_size, -1, 1)))) 
-            loss_tr += loss
+        loss += -torch.mean(torch.nn.functional.logsigmoid(torch.bmm(
+                ref.view(batch_size, 1, -1),pos.view(batch_size, -1, 1)))) 
+        loss_tr += loss
 
         loss.backward(retain_graph=True)
         loss = 0
@@ -124,12 +120,10 @@ class TripletSigmoidLoss(torch.nn.modules.loss._Loss):
         torch.cuda.empty_cache()
 
         # loss between ref and each negative samples
-        for j in range(self.electrode):
-            ref_tensor = ref[:,j,:]
-            for i in range(self.Kcount):
-                neg_tensor = neg[:,i,j,:]
-                loss += -self.scale_int*torch.mean(torch.nn.functional.logsigmoid(
-                -torch.bmm(ref_tensor.view(batch_size, 1, -1),neg_tensor.view(batch_size, -1, 1))))
+        for i in range(self.Kcount):
+            neg_tensor = neg[:,i,:]
+            loss += -self.scale_int*torch.mean(torch.nn.functional.logsigmoid(
+                -torch.bmm(ref.view(batch_size, 1, -1),neg_tensor.view(batch_size, -1, 1))))
                 
         loss_tr += loss
         loss.backward(retain_graph=True)
@@ -201,12 +195,12 @@ class TripletSigmoidLoss(torch.nn.modules.loss._Loss):
         loss = 0
 
         loss += -torch.mean(torch.nn.functional.logsigmoid(torch.bmm(
-                ref.view(self.electrode, 1, -1),pos.view(self.electrode, -1, 1))))
+                ref.view(1, 1, -1),pos.view(1, -1, 1))))
 
         for i in range(self.Kcount):
             neg_tensor = neg[i,:,:]
             loss += -self.scale_int*torch.mean(torch.nn.functional.logsigmoid(
-                -torch.bmm(ref.view(self.electrode, 1, -1),neg_tensor.view(self.electrode,-1,1))))
+                -torch.bmm(ref.view(1, 1, -1),neg_tensor.view(1, -1, 1))))
          
         del pos, neg, ref
         torch.cuda.empty_cache()

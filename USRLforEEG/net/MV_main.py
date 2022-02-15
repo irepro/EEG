@@ -6,13 +6,13 @@ import numpy as np
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
-from model import MSNNEncoder
+from model import UnsupervisedEncoderMV, UnsupervisedEncoder_batch
 from EEGLoader import *
-from loss import TripletSigmoidLoss_MSNNE
+from loss import TripletSigmoidLoss_MV
 
 # batch size
-batch_size = 8
-learning_rate = 0.00000001
+batch_size = 4
+learning_rate = 0.0000001
 epochs = 10
 
 # dataset path
@@ -31,23 +31,22 @@ print("valLoader")
 validLoader = DataLoader(testEEG, batch_size = batch_size, shuffle=True)
 
 #if in_channels == 1: use one channel, in_channels == 62 : use 62 channel
-in_channels = 1
+in_channels = 62
 #out_channels means the number of features of representation vector 
-out_channels = 32
-electrode = 62
+out_channels = 512
 
-#model = UnsupervisedEncoder_batch.Encoder(electrode, in_channels, out_channels)
-model = MSNNEncoder.Encoder(electrode, in_channels, out_channels)
+model = UnsupervisedEncoderMV.Encoder(in_channels, out_channels)
+#model = MSNNEncoder.Encoder(electrode, in_channels, out_channels)
 '''PATH = "../USRLFOREEG/save_model/01191501ch128loss3.pth"
 checkpoint = torch.load(PATH)
 model.load_state_dict(checkpoint)'''
 #Custom Tripletloss
 
-criterion = TripletSigmoidLoss_MSNNE.TripletSigmoidLoss(Kcount=4, electrode = 62, scale_int=0.2, sample_margin=200) 
+criterion = TripletSigmoidLoss_MV.TripletSigmoidLoss(Kcount=5, scale_int=0.2, sample_margin = 200) 
 
 #use SGD optimizer
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
-scheduler = StepLR(optimizer, step_size=5, gamma=0.1)
+scheduler = StepLR(optimizer, step_size=6, gamma=0.5)
 
 # save epoch loss
 loss_tr = []
@@ -62,7 +61,7 @@ for epoch in range(epochs):
     loss_v = criterion.get_valloss(model, testEEG.getallitem())
     loss_tr.append(loss_ep.item()/1000)
     loss_val.append(loss_v.item())
-    scheduler.step()
+    #scheduler.step()
     print("epoch : ",epoch, "   train loss : ",loss_ep.item(),"    val loss : ", loss_v.item())
 
 import os

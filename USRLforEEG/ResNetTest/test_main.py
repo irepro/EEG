@@ -6,7 +6,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import numpy as np
 import torch
 from net import EEGLoader
-from model import UnsupervisedEncoder, resnetEEG, resnetEEGnoConnect, simpleClass
+from model import UnsupervisedEncoder, resnetEEGMV, resnetEEGnoConnect, simpleClass
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 import tensorflow as tf
@@ -23,7 +23,7 @@ def accuracy_check(label, pred):
     return accuracy
 
 batch_size = 4
-learning_rate = 0.0000000001
+learning_rate = 0.00000000001
 epochs = 10
 
 data_dir = "../USRLFOREEG/data"
@@ -46,12 +46,12 @@ electrode = 62
 
 #represent_encoder = UnsupervisedEncoder.Encoder(electrode, in_channels, out_channels)
 
-name = "02091202ch72loss1"
+name = "02141602ch512loss9"
 PATH = "../USRLFOREEG/save_model/"+name+".pth"
 represent_encoder = torch.load(PATH, map_location=torch.device('cpu'))
 #represent_encoder.load_state_dict(checkpoint)
 
-resnetClasification = resnetEEGnoConnect.Resnet50Encoder(62,2)
+resnetClasification = resnetEEGMV.Resnet50Encoder(1,2)
 #resnetClasification = simpleClass.Net()
 
 max_norm = 5
