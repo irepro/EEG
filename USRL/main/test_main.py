@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 import numpy as np
 import torch
-from net import EEGLoader
+from main import EEGLoader
 from model import USRL
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
