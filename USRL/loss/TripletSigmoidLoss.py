@@ -33,7 +33,7 @@ class TripletSigmoidLoss(torch.nn.modules.loss._Loss):
                     )
         for i in range(self.Kcount):
             lengths_samples[i] = max_length - torch.sum(
-                torch.isnan(train[samples[i],0]), 1
+                torch.isnan(train[samples[i],0]), -1
             ).data.cpu().numpy()
 
         '''print("lengths_samples :\n", lengths_samples)

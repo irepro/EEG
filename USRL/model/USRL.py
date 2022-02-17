@@ -42,7 +42,7 @@ class maxpool_Full_elec(nn.Module):
         return out
 
 class CausalBlock(nn.Module):
-    def __init__(self, electrode, in_channels, mid_channels,out_channels, Full_elec, skip=False, kernel_size=3, dilation=1):
+    def __init__(self, electrode, in_channels, mid_channels,out_channels, skip=False, kernel_size=3, dilation=1):
         super(CausalBlock, self).__init__()
         self.skip = skip
         self.dilation = dilation
@@ -50,7 +50,6 @@ class CausalBlock(nn.Module):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.electrode = electrode
-        self.Full_elec = Full_elec
 
         if self.skip:
             self.skip_layer = nn.Conv1d(in_channels, out_channels, 1)
@@ -196,19 +195,19 @@ class USRL(nn.Module):
         self.Unsupervise = Unsupervise
         if self.Full_elec:
             self.classification = nn.Sequential(
-                    nn.Linear(512, 512),
+                    nn.Linear(2048, 512),
                     nn.LeakyReLU(),
                     nn.Linear(512, 512),
                     nn.LeakyReLU(),
-                    nn.Linear(512, 2)
+                    nn.Linear(512, 5)
                 )
         else:
             self.classification = nn.Sequential(
                     nn.Flatten(),
-                    nn.Linear(4464, 512),
+                    nn.Linear(2048, 512),
                     nn.LeakyReLU(),
                     nn.Linear(512, 512),
                     nn.LeakyReLU(),
-                    nn.Linear(512, 2)
+                    nn.Linear(512, 5)
             )
 
