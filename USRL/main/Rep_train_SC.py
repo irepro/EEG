@@ -20,6 +20,7 @@ batch_size = 4
 learning_rate = 0.00000000001
 epochs = 15
 
+#dataset 몇개를 사용할 것인지 결정 ex)1~4
 idx = list(range(1,4))
 tr, va, te = utils.load_dataset(idx).call(3)
 
@@ -34,6 +35,7 @@ in_channels = 1
 #out_channels means the number of features of representation vector 
 out_channels = 256
 electrode = 64
+#Full_elec means whether you use all of electrodes or not, if true, then you will use all of electrodes
 Full_elec = True
 
 model = USRL.USRL(electrode, in_channels, out_channels, Full_elec)

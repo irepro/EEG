@@ -32,7 +32,7 @@ batch_size = 64
 learning_rate = 0.01
 epochs = 500
 
-idx = list(range(1,2))
+idx = list(range(1,2)) #dataset 몇개를 사용할 것인지. 1~2
 tr, va, te = utils.load_dataset(idx).call(5)
 
 # dataset loader
