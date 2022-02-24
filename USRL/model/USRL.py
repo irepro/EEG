@@ -3,6 +3,7 @@ from turtle import forward
 import torch
 import torch.nn as nn
 import tensorflow as tf
+from model import resnetEEGMV, resnetEEG
 
 def padding1D(x, kernel_size, dilation=1):
     pad = ((kernel_size-1)*(2**(dilation+1)),0)
@@ -183,6 +184,8 @@ class USRL(nn.Module):
         self.activation = torch.nn.LeakyReLU()
         self.Full_elec = Full_elec
         self.Unsupervise = Unsupervise
+        self.out_channels = out_channels
+        self.electrode = electrode
 
     def forward(self, x):
         x = self.encoder(x)
@@ -193,21 +196,10 @@ class USRL(nn.Module):
 
     def set_Unsupervised(self, Unsupervise):
         self.Unsupervise = Unsupervise
+        print(self)
         if self.Full_elec:
-            self.classification = nn.Sequential(
-                    nn.Linear(2048, 512),
-                    nn.LeakyReLU(),
-                    nn.Linear(512, 512),
-                    nn.LeakyReLU(),
-                    nn.Linear(512, 5)
-                )
+            self.classification = resnetEEGMV.Resnet50Encoder( 1, 5)
+                
         else:
-            self.classification = nn.Sequential(
-                    nn.Flatten(),
-                    nn.Linear(2048, 512),
-                    nn.LeakyReLU(),
-                    nn.Linear(512, 512),
-                    nn.LeakyReLU(),
-                    nn.Linear(512, 5)
-            )
+            self.classification = resnetEEG.Resnet50Encoder(64, 5)
 

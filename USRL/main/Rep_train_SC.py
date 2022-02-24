@@ -17,11 +17,11 @@ import torch
 
 # batch size
 batch_size = 4
-learning_rate = 0.0000000001
-epochs = 5
+learning_rate = 0.00000000001
+epochs = 15
 
-idx = list(range(1,2))
-tr, va, te = utils.load_dataset(idx).call(5)
+idx = list(range(1,4))
+tr, va, te = utils.load_dataset(idx).call(3)
 
 # dataset loader
 trainEEG = utilLoader.EEGLoader(tr, False)
@@ -32,17 +32,17 @@ trainLoader = DataLoader(trainEEG, batch_size = batch_size, shuffle=True)
 #if in_channels == 1: use one channel, in_channels == 62 : use 62 channel
 in_channels = 1
 #out_channels means the number of features of representation vector 
-out_channels = 32
+out_channels = 256
 electrode = 64
-Full_elec = False
+Full_elec = True
 
 model = USRL.USRL(electrode, in_channels, out_channels, Full_elec)
 #Custom Tripletloss
 
 if Full_elec:
-    criterion = TripletSigmoidLoss_MV.TripletSigmoidLoss(Kcount=5, scale_int=0.2, sample_margin = 200)     
+    criterion = TripletSigmoidLoss_MV.TripletSigmoidLoss(Kcount=5, scale_int=0.2)     
 else:
-    criterion = TripletSigmoidLoss.TripletSigmoidLoss(Kcount=5, electrode = electrode, scale_int=0.2, sample_margin = 200)
+    criterion = TripletSigmoidLoss.TripletSigmoidLoss(Kcount=3, electrode = electrode, scale_int=1)
 #use SGD optimizer
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
 scheduler = StepLR(optimizer, step_size=6, gamma=0.5)

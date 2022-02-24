@@ -28,9 +28,9 @@ def accuracy_check(label, pred):
 
     return accuracy, prediction
 
-batch_size = 4
-learning_rate = 0.0001
-epochs = 5
+batch_size = 64
+learning_rate = 0.01
+epochs = 500
 
 idx = list(range(1,2))
 tr, va, te = utils.load_dataset(idx).call(5)
@@ -43,16 +43,16 @@ trainLoader = DataLoader(trainEEG, batch_size = batch_size, shuffle=True)
 
 #represent_encoder = UnsupervisedEncoder.Encoder(electrode, in_channels, out_channels)
 
-name = "172302c32l23elecF"
+name = "230302c256l221elecT"
 PATH = "../USRL/save_model/"+name+".pth"
 model = torch.load(PATH, map_location=torch.device('cpu'))
 model.set_Unsupervised(False)
 
-#max_norm = 5
+max_norm = 5
 CrossEL=torch.nn.CrossEntropyLoss()
-#optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-scheduler = StepLR(optimizer, step_size=10, gamma=0.1)
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
+#optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+scheduler = StepLR(optimizer, step_size=10, gamma=0.5)
 
 total_loss = []
 for epoch in range(epochs):
@@ -65,7 +65,7 @@ for epoch in range(epochs):
         loss = CrossEL(outputs, labels)
 
         loss.backward()
-        #torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
         optimizer.step()
 
         epoch_loss += loss.clone().item()
@@ -74,7 +74,7 @@ for epoch in range(epochs):
         torch.cuda.empty_cache()
     
     total_loss.append(epoch_loss)
-    scheduler.step()
+    #scheduler.step()
 
     inputs, labels = va
 
@@ -94,9 +94,10 @@ print("val acc : ", epoch_acc)
 label=[0, 1] # 라벨 설정
 plot = confusion_matrix(labels, pred)
 print(plot)
-score = str(f1_score(labels, pred))
+score = str(f1_score(labels, pred, average='micro'))
 print("f1 acc : ", score)
 
+plt.plot(range(epochs), total_loss, label='Loss', color='red')
 plt.title('Loss history')
 plt.xlabel('epoch')
 plt.ylabel('loss')
