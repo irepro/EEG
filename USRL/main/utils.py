@@ -1,7 +1,6 @@
 # Import APIs
 import scipy.io # To load .mat files
 import numpy as np
-import tensorflow as tf
 
 from mne.filter import filter_data, notch_filter
 
@@ -9,7 +8,8 @@ from mne.filter import filter_data, notch_filter
 class load_dataset():
     def __init__(self, sbj_idx):
         self.sbj_idx = sbj_idx
-        self.path = '../USRL/data/Track3/' # Define the data path
+        self.path = '/DataCommon/jhjeon/Track3/'
+        #self.path = '../USRL/data/Track3/' # Define the data path
 
     def load_data(self):
         X = []

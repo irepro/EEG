@@ -1,5 +1,4 @@
 from pickle import TRUE
-import torchvision
 import torch.nn as nn
 import torch
 
@@ -69,7 +68,7 @@ class Resnet50Encoder(nn.Module):
         self.n_classes = n_classes
         #out_channel 32
         self.layer1 = nn.Sequential(
-            nn.Conv1d(inchannels, 4, kernel_size = 5, stride = 2, padding = 2 ), # Code overlaps with previous assignments
+            nn.Conv1d(inchannels, 4, kernel_size = 5, stride = 1, padding = 2 ), # Code overlaps with previous assignments
             nn.BatchNorm1d(4),
             nn.ReLU(inplace=True)
         )
@@ -149,11 +148,16 @@ class Resnet50Encoder(nn.Module):
 
         self.bridge = conv(512, 512)
         self.fullconnect = nn.Sequential(
-                    nn.Linear(512, 512),
+                    torch.nn.utils.weight_norm(nn.Linear(1024, 1024)),
                     nn.LeakyReLU(),
                     #nn.Linear(128, 128),
                     #nn.LeakyReLU(),
-                    nn.Linear(512, 5)
+                    torch.nn.utils.weight_norm(nn.Linear(1024, 1024)),
+                    nn.LeakyReLU(),
+                    torch.nn.utils.weight_norm(nn.Linear(1024, 1024)),
+                    nn.LeakyReLU(),
+                    torch.nn.utils.weight_norm(nn.Linear(1024, 5)),
+                    nn.LeakyReLU(),
                 )
         # Dropout
         self.dropout = nn.Dropout(0.5)
@@ -172,6 +176,5 @@ class Resnet50Encoder(nn.Module):
         x = self.bridge(x) # bridge
         x = torch.flatten(x,1)
         x = self.fullconnect(x)
-        x = self.softmax(x)
         return x
 

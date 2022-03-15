@@ -10,12 +10,10 @@ import utilLoader
 from model import USRL
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
-import tensorflow as tf
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
-
+from sklearn.metrics import f1_score
 
 def accuracy_check(label, pred):
     prediction = np.argmax(pred, axis=1)
@@ -28,31 +26,47 @@ def accuracy_check(label, pred):
 
     return accuracy, prediction
 
-batch_size = 64
-learning_rate = 0.01
-epochs = 500
+os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-idx = list(range(1,2)) #dataset 몇개를 사용할 것인지. 1~2
+batch_size = 8
+learning_rate = 0.0001
+epochs = 70
+
+idx = list(range(11,12)) #dataset 몇개를 사용할 것인지. 1~2
 tr, va, te = utils.load_dataset(idx).call(5)
 
 # dataset loader
-trainEEG = utilLoader.EEGLoader(tr, True)
+trainEEG = utilLoader.EEGLoader(tr, device, True)
 
-print("tainLoader")
+print("trainLoader")
 trainLoader = DataLoader(trainEEG, batch_size = batch_size, shuffle=True)
 
 #represent_encoder = UnsupervisedEncoder.Encoder(electrode, in_channels, out_channels)
 
-name = "230302c256l221elecT"
-PATH = "../USRL/save_model/"+name+".pth"
-model = torch.load(PATH, map_location=torch.device('cpu'))
-model.set_Unsupervised(False)
+
+name = "150903c512l8elecT.pth"
+PATH = "/DataCommon/jhjeon/model/"+name
+model = torch.load(PATH, map_location=device)
+model.encoder.requires_grad = False
+out_channels = name[2:12]
+'''
+#if in_channels == 1: use one channel, in_channels == 62 : use 62 channel
+in_channels = 1
+#out_channels means the number of features of representation vector 
+out_channels = 512
+electrode = 64
+#Full_elec means whether you use all of electrodes or not, if true, then you will use all of electrodes
+Full_elec = True
+model = USRL.USRL(electrode, in_channels, out_channels, Full_elec).to(device)
+'''
+model.set_Unsupervised(device, False)
 
 max_norm = 5
 CrossEL=torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
-#optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-scheduler = StepLR(optimizer, step_size=10, gamma=0.5)
+#optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+scheduler = StepLR(optimizer, step_size=30, gamma=0.1)
 
 total_loss = []
 for epoch in range(epochs):
@@ -78,16 +92,16 @@ for epoch in range(epochs):
 
     inputs, labels = va
 
-    outputs = model.forward(torch.Tensor(inputs))
-    loss_va = CrossEL(outputs, torch.Tensor(labels))
+    outputs = model.forward(torch.Tensor(inputs).to(device))
+    loss_va = CrossEL(outputs, torch.Tensor(labels).to(device))
 
     print("epoch", epoch + 1, "train loss : ", epoch_loss, "val loss:", loss_va.item())
 
 inputs, labels = te
 labels = np.argmax(labels, axis=1)
 
-outputs = model.forward(torch.Tensor(inputs))
-epoch_acc, pred = accuracy_check(labels, outputs.detach().numpy())
+outputs = model.forward(torch.Tensor(inputs).to(device))
+epoch_acc, pred = accuracy_check(labels, outputs.cpu().detach().numpy())
 
 print("val acc : ", epoch_acc)
 
@@ -103,5 +117,5 @@ plt.xlabel('epoch')
 plt.ylabel('loss')
 plt.show()
 
-savepath = "../USRLFOREEG/save_res/"+ "ch" + name[2:12] + "f1"+score[2:4] + "acc" + str(epoch_acc[2:]) + ".pth"
-torch.save(model, savepath)
+#savepath = '/DataCommon/jhjeon/model/'+ date + "ch" + str(out_channels) + "acc" + str(score) + ".pth"
+#torch.save(model, savepath)

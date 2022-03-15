@@ -5,11 +5,11 @@ import torch
 from scipy.signal import butter, lfilter
 
 class EEGLoader(Dataset):
-    def __init__(self, data, supervised):
+    def __init__(self, data, device, supervised):
         X_data, y_data = data
 
-        self.x_data = torch.Tensor(X_data)
-        self.y_data = torch.Tensor(y_data)
+        self.x_data = torch.Tensor(X_data).to(device)
+        self.y_data = torch.Tensor(y_data).to(device)
         self.supervised = supervised
 
     def __len__(self):

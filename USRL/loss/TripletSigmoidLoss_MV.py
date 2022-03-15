@@ -2,7 +2,6 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import tensorflow as tf
 
 class TripletSigmoidLoss(torch.nn.modules.loss._Loss):
     def __init__(self, Kcount = 5, sample_margin =10, scale_int = 0.2):
@@ -12,8 +11,8 @@ class TripletSigmoidLoss(torch.nn.modules.loss._Loss):
         self.scale_int = scale_int
 
     def forward(self, batch, encoder, train, **kwargs):
-        train_size = train.size(0)
-        max_length = train.size(2)
+        train_size = train.x_data.size(0)
+        max_length = train.x_data.size(2)
         batch_size = batch.size(0)
 
         #select negative sample of each batch sample
@@ -32,7 +31,7 @@ class TripletSigmoidLoss(torch.nn.modules.loss._Loss):
                     )
         for i in range(self.Kcount):
             lengths_samples[i] = max_length - torch.sum(
-                torch.isnan(train[samples[i],0]), -1
+                torch.isnan(train.x_data[samples[i],0]), -1
             ).data.cpu().numpy()
 
         '''print("lengths_samples :\n", lengths_samples)
@@ -99,7 +98,7 @@ class TripletSigmoidLoss(torch.nn.modules.loss._Loss):
         neg = []
         for j in range(batch_size):
             for i in range(self.Kcount):
-                input = train[samples[i,j],:,beginning_neg[i,j]:beginning_neg[i,j]+lengths_neg[i,j]]
+                input = train.x_data[samples[i,j],:,beginning_neg[i,j]:beginning_neg[i,j]+lengths_neg[i,j]]
                 neg_tensor = [encoder.forward(torch.unsqueeze(input,0))]
                 neg.append(torch.stack(neg_tensor))
         neg = torch.stack(neg)
