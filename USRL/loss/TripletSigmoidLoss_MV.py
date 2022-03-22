@@ -4,11 +4,12 @@ import torch
 import torch.nn as nn
 
 class TripletSigmoidLoss(torch.nn.modules.loss._Loss):
-    def __init__(self, Kcount = 5, sample_margin =10, scale_int = 0.2):
+    def __init__(self, Kcount = 5, sample_margin =10, scale_int = 0.2, device = None):
         super().__init__()
         self.Kcount = Kcount # number of negative sample 
         self.margin = sample_margin # min of signal length
         self.scale_int = scale_int
+        self.device = device
 
     def forward(self, batch, encoder, train, **kwargs):
         train_size = train.x_data.size(0)
@@ -86,20 +87,20 @@ class TripletSigmoidLoss(torch.nn.modules.loss._Loss):
         ref = []
         for j in range(batch_size):
             input = batch[j,:,beginning_ref[j]:beginning_ref[j]+lengths_ref[j]]
-            ref.append(encoder.forward(torch.unsqueeze(input,0)))
+            ref.append(encoder.forward(torch.unsqueeze(input,0).to(self.device)))
         ref = torch.stack(ref)
         ref = torch.squeeze(ref, 1)
         pos = []
         for j in range(batch_size):
             input = batch[j,:,beginning_pos[j]:beginning_pos[j]+lengths_pos[j]]
-            pos.append(encoder.forward(torch.unsqueeze(input,0)))
+            pos.append(encoder.forward(torch.unsqueeze(input,0).to(self.device)))
         pos = torch.stack(pos)
         pos = torch.squeeze(pos, 1)
         neg = []
         for j in range(batch_size):
             for i in range(self.Kcount):
                 input = train.x_data[samples[i,j],:,beginning_neg[i,j]:beginning_neg[i,j]+lengths_neg[i,j]]
-                neg_tensor = [encoder.forward(torch.unsqueeze(input,0))]
+                neg_tensor = [encoder.forward(torch.unsqueeze(input,0).to(self.device))]
                 neg.append(torch.stack(neg_tensor))
         neg = torch.stack(neg)
         neg = neg.reshape([batch_size,self.Kcount, -1])
@@ -182,12 +183,12 @@ class TripletSigmoidLoss(torch.nn.modules.loss._Loss):
                 beginning_pos, lengths_pos - lengths_ref + beginning_pos + 1
             )
 
-        ref = encoder.forward(torch.unsqueeze(val[samples[0],:, beginning_ref:beginning_ref+lengths_ref],0))
-        pos = encoder.forward(torch.unsqueeze(val[samples[0],:, beginning_pos:beginning_pos+lengths_pos],0))
+        ref = encoder.forward(torch.unsqueeze(val[samples[0],:, beginning_ref:beginning_ref+lengths_ref],0).to(self.device))
+        pos = encoder.forward(torch.unsqueeze(val[samples[0],:, beginning_pos:beginning_pos+lengths_pos],0).to(self.device))
         neg = []
         for j in range(self.Kcount):
             input = val[samples[j+1],:, beginning_neg[j]:beginning_neg[j]+lengths_neg[j]]
-            neg_tensor = encoder.forward(torch.unsqueeze(input, 0))
+            neg_tensor = encoder.forward(torch.unsqueeze(input, 0).to(self.device))
             neg.append(neg_tensor)
         neg = torch.stack(neg)
 

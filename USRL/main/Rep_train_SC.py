@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
-from model import USRL
+from model import USRL, USRL_2
 import utilLoader
 import utils 
 from loss import TripletSigmoidLoss, TripletSigmoidLoss_MV
@@ -18,19 +18,19 @@ import torch
 # batch size
 batch_size = 16
 learning_rate = 0.001
-epochs = 5
+epochs = 7
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6, 7"
 device = "cpu"
 #torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 #"cpu"
 
 #dataset 몇개를 사용할 것인지 결정 ex)1~4
-idx = list(range(1,10))
+idx = list(range(1,11))
 tr, va, te = utils.load_dataset(idx).call(3)
 
 # dataset loader
-trainEEG = utilLoader.EEGLoader(tr, device, False)
+trainEEG = utilLoader.EEGLoader(tr, torch.device("cpu"), False)
 
 print("tainLoader")
 trainLoader = DataLoader(trainEEG, batch_size = batch_size, shuffle=True)
@@ -39,7 +39,7 @@ max_norm = 5
 #if in_channels == 1: use one channel, in_channels == 62 : use 62 channel
 in_channels = 1
 #out_channels means the number of features of representation vector 
-out_channels = 512
+out_channels = 384
 electrode = 64
 #Full_elec means whether you use all of electrodes or not, if true, then you will use all of electrodes
 Full_elec = True
@@ -48,7 +48,7 @@ model = USRL.USRL(electrode, in_channels, out_channels, Full_elec).to(device)
 #Custom Tripletloss
 
 if Full_elec:
-    criterion = TripletSigmoidLoss_MV.TripletSigmoidLoss(Kcount=10, scale_int=1, sample_margin=200)
+    criterion = TripletSigmoidLoss_MV.TripletSigmoidLoss(Kcount=10, scale_int=1, sample_margin=200, device=device)
 else:
     criterion = TripletSigmoidLoss.TripletSigmoidLoss(Kcount=10, electrode = electrode, scale_int=1, sample_margin=200)
 #use SGD optimizer
@@ -83,7 +83,7 @@ if Full_elec:
     fe = "T"
 else:
     fe = "F"
-savepath = '/DataCommon/jhjeon/model/'+ date + "c" +str(out_channels) + "l" +str(int(loss_val[-1])) +"elec"+ fe + ".pth"
+savepath = '/DataCommon/jhjeon/model/'+"b" + str(batch_size) + "e" + str(epochs) + "la4" +"c" + str(out_channels) + "lo" +str(int(loss_val[-1])) +"elec"+ fe + ".pth"
 #"../USRL/save_model/"+date+ "c" + str(out_channels) + "l" +str(int(loss_val[-1])) +"elec"+ fe + ".pth"
 torch.save(model, savepath)
 

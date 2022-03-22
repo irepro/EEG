@@ -26,12 +26,12 @@ def accuracy_check(label, pred):
 
     return accuracy, prediction
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-batch_size = 8
+batch_size = 16
 learning_rate = 0.0001
-epochs = 70
+epochs = 100
 
 idx = list(range(11,12)) #dataset 몇개를 사용할 것인지. 1~2
 tr, va, te = utils.load_dataset(idx).call(5)
@@ -44,9 +44,8 @@ trainLoader = DataLoader(trainEEG, batch_size = batch_size, shuffle=True)
 
 #represent_encoder = UnsupervisedEncoder.Encoder(electrode, in_channels, out_channels)
 
-
-name = "150903c512l8elecT.pth"
-PATH = "/DataCommon/jhjeon/model/"+name
+name = "b16e7la4c384lo7elecT"
+PATH = "/DataCommon/jhjeon/model/"+name + ".pth"
 model = torch.load(PATH, map_location=device)
 model.encoder.requires_grad = False
 out_channels = name[2:12]
@@ -117,5 +116,7 @@ plt.xlabel('epoch')
 plt.ylabel('loss')
 plt.show()
 
-#savepath = '/DataCommon/jhjeon/model/'+ date + "ch" + str(out_channels) + "acc" + str(score) + ".pth"
-#torch.save(model, savepath)
+if float(score) > 0.64:
+    savepath = '/DataCommon/jhjeon/trained/'+ name + "acc" + str(score[2:4]) + ".pth"
+    print(savepath)
+    torch.save(model, savepath)

@@ -41,6 +41,23 @@ class maxpool_Full_elec(nn.Module):
 
         return x
 
+class causalMaxPool(nn.Module):
+    def __init__(self, Full_elec = False):
+        super(causalMaxPool, self).__init__()
+        self.maxpool = nn.MaxPool1d(2)
+        self.Full_elec = Full_elec
+
+    def forward(self, x):
+        if self.Full_elec:
+            x = self.maxpool(x)
+        else:
+            x = torch.squeeze(x, dim=0)
+            x = self.maxpool(x)
+            x = torch.unsqueeze(x, dim=0)
+
+        return x
+
+
 class CausalBlock(nn.Module):
     def __init__(self, electrode, in_channels, mid_channels,out_channels, skip=False, kernel_size=3, dilation=1):
         super(CausalBlock, self).__init__()
@@ -101,32 +118,7 @@ class CausalBlock_MV(nn.Module):
         #self.electrode = electrode
         self.in_channels = in_channels
         self.out_channels = out_channels
-        '''
-        if self.skip:
-            self.skip_layer = nn.Conv2d(in_channels, out_channels, 1)
-            self.layer = nn.Sequential(
-                 #filter = K, kernel_size=3
-                    torch.nn.utils.weight_norm(nn.Conv2d(in_channels, mid_channels, kernel_size, dilation=2**dilation)),
-                    #nn.BatchNorm1d(mid_channels),
-                    nn.LeakyReLU(),
-                    torch.nn.utils.weight_norm(nn.Conv2d(mid_channels, out_channels, kernel_size, dilation=2**dilation)),
-                    #nn.BatchNorm1d(out_channels),
-                    nn.LeakyReLU(),
-                
-            )
 
-        else:
-            self.layer = nn.Sequential(
-                #filter = K, kernel_size=3
-                    torch.nn.utils.weight_norm(nn.Conv2d(in_channels, mid_channels, kernel_size, dilation=2**dilation)),
-                    #nn.BatchNorm1d(mid_channels),
-                    nn.LeakyReLU(),
-                    torch.nn.utils.weight_norm(nn.Conv2d(mid_channels, out_channels, kernel_size, dilation=2**dilation)),
-                    #nn.BatchNorm1d(out_channels),
-                    nn.LeakyReLU(),
-                
-            )
-        '''
         if self.skip:
             self.skip_layer = nn.Conv1d(in_channels, out_channels, 1)
             self.layer = nn.Sequential(
@@ -167,53 +159,28 @@ class CausalBlock_MV(nn.Module):
             out = self.layer(pad_x)
             out = out.reshape([batch_size, self.out_channels,-1])
             return out
-    '''
-    def forward(self, x):
-            x_sh = x.shape
-            batch_size = x_sh[0]
-            x = x.reshape([batch_size, self.in_channels, self.electrode, -1])
-
-            pad_x = padding1D(x, kernel_size=self.kernel_size, dilation=self.dilation)
-            if self.skip:
-                out = self.layer(pad_x)
-                out += self.skip_layer(x)
-                #out = out.reshape([batch_size, self.out_channels,-1])
-                return out
-            else:
-                out = self.layer(pad_x)
-                #out = out.reshape([batch_size, self.out_channels,-1])
-                return out
-        '''
 
 class Encoder(nn.Module):
     def __init__(self, electrode, in_channels, out_channels, Full_elec):
         super(Encoder, self).__init__()
         if Full_elec:
-            '''
-            self.causalblock1 = CausalBlock_MV(electrode, in_channels, 4, 8, skip=True, kernel_size=5, dilation=0)
-            self.causalblock2 = CausalBlock_MV(electrode, 8, 16, 32, skip=True, kernel_size=5, dilation=1)
-            self.causalblock3 = CausalBlock_MV(electrode, 32, 64, 128, skip=True, kernel_size=5, dilation=2)
-            #self.causalblock4 = CausalBlock_MV(electrode, 16, 32, 32, skip=True, kernel_size=5, dilation=3)
-            #self.causalblock5 = CausalBlock_MV(electrode, 32, 64, 64, skip=True, kernel_size=5, dilation=4)
-            #self.causalblock6 = CausalBlock_MV(electrode, 64, out_channels, out_channels, skip=True, kernel_size=5, dilation=6)
-            '''
             self.causalblock1 = CausalBlock_MV(electrode, 64, 64, skip=True, kernel_size=5, dilation=0)
             self.causalblock2 = CausalBlock_MV(64, 128, 128, skip=True, kernel_size=5, dilation=1)
             self.causalblock3 = CausalBlock_MV(128, 256, 256, skip=True, kernel_size=5, dilation=2)
             self.causalblock4 = CausalBlock_MV(256, out_channels, out_channels, skip=True, kernel_size=5, dilation=3)
-            #self.causalblock5 = CausalBlock_MV(512, out_channels, out_channels, skip=True, kernel_size=5, dilation=3)
+            #self.causalblock5 = CausalBlock_MV(256, out_channels, out_channels, skip=True, kernel_size=5, dilation=3)
 
             self.maxpool = maxpool_Full_elec()
-        else:  
-            self.causalblock1 = CausalBlock(electrode, in_channels, 4, 4, skip=True, kernel_size=5, dilation=0)
-            self.causalblock2 = CausalBlock(electrode, 4, 4, 8, skip=True, kernel_size=5, dilation=1)
-            self.causalblock3 = CausalBlock(electrode, 8, 16, 16, skip=True, kernel_size=5, dilation=2)
-            self.causalblock4 = CausalBlock(electrode, 16, 32, 32, skip=True, kernel_size=5, dilation=2)
-            self.causalblock5 = CausalBlock(electrode, 32, 64, 64, skip=True, kernel_size=5, dilation=2)
-            self.causalblock6 = CausalBlock(electrode, 64, out_channels, out_channels, skip=True, kernel_size=5, dilation=3)
+        else:
+            self.causalblock1 = CausalBlock_MV(electrode, in_channels, 4, 4, skip=True, kernel_size=5, dilation=0)
+            self.causalblock2 = CausalBlock_MV(electrode, 4, 8, 8, skip=True, kernel_size=5, dilation=1)
+            self.causalblock3 = CausalBlock_MV(electrode, 8, 16, 16, skip=True, kernel_size=5, dilation=2)
+            self.causalblock4 = CausalBlock_MV(electrode, 16, 32, 32, skip=True, kernel_size=5, dilation=3)
+            self.causalblock5 = CausalBlock_MV(electrode, 32, 64, 64, skip=True, kernel_size=5, dilation=4)
+            self.causalblock6 = CausalBlock_MV(electrode, 64, out_channels, out_channels, skip=True, kernel_size=5, dilation=6)
             self.maxpool = maxpool()
         self.out_channels = out_channels
-        self.maxpool1d = nn.MaxPool1d(2)
+        self.maxpool1d = causalMaxPool(Full_elec)
         self.electrode = electrode
         self.Full_elec = Full_elec
 
@@ -227,10 +194,9 @@ class Encoder(nn.Module):
         x = self.causalblock3(x)
         x = self.maxpool1d(x)
         x = self.causalblock4(x)
-        x = self.maxpool1d(x)
-        #x = self.causalblock5(x)
         #x = self.maxpool1d(x)
         #x = self.causalblock5(x)
+        #x = self.maxpool1d(x)
         #x = self.causalblock6(x)
 
         out = self.maxpool(x)
@@ -268,18 +234,18 @@ class USRL(nn.Module):
         print(self)
         if self.Full_elec:
             self.classification = nn.Sequential(
-                    torch.nn.utils.weight_norm(nn.Conv1d(1, 2, 3, 1)),
+                    torch.nn.utils.weight_norm(nn.Conv1d(1, 4, 5, 1)),
                     nn.ReLU(),
-                    nn.MaxPool1d(2),
-                    torch.nn.utils.weight_norm(nn.Conv1d(2, 4, 3, 1)),
+                    nn.MaxPool1d(4),
+                    torch.nn.utils.weight_norm(nn.Conv1d(4, 16, 5, 1)),
                     nn.ReLU(),
-                    nn.MaxPool1d(2),
-                    torch.nn.utils.weight_norm(nn.Conv1d(4, 8, 3, 1)),
+                    nn.MaxPool1d(4),
+                    torch.nn.utils.weight_norm(nn.Conv1d(16, 64, 5, 1)),
                     nn.ReLU(),
-                    nn.MaxPool1d(2),
+                    nn.MaxPool1d(4),
                     torch.nn.Flatten(),
                     nn.Dropout(0.5),
-                    torch.nn.utils.weight_norm(nn.Linear(496, 5)),
+                    torch.nn.utils.weight_norm(nn.Linear(256, 5)),
                 ).to(device)
             #resnetEEGMV.Resnet50Encoder( 1, 5)
                 
